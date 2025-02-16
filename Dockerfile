@@ -33,6 +33,7 @@ RUN --mount=type=cache,id=pip-$TARGETARCH$TARGETVARIANT,sharing=locked,target=/r
     pip setuptools wheel
 
 # Install requirements
+RUN python3 -m pip install --upgrade pip
 RUN --mount=type=cache,id=pip-$TARGETARCH$TARGETVARIANT,sharing=locked,target=/root/.cache/pip \
     --mount=source=requirements_linux_docker.txt,target=requirements_linux_docker.txt \
     --mount=source=requirements.txt,target=requirements.txt \
@@ -108,10 +109,17 @@ COPY --link --chown=$UID:0 --chmod=775 --from=build /root/.local /home/$UID/.loc
 COPY --link --chown=$UID:0 --chmod=775 . /app
 
 ENV PATH="/usr/local/cuda/lib:/usr/local/cuda/lib64:/home/$UID/.local/bin:$PATH"
-ENV PYTHONPATH="${PYTHONPATH}:/home/$UID/.local/lib/python3.10/site-packages" 
+ENV PYTHONPATH="${PYTHONPATH}:/home/$UID/.local/lib/python3.10/site-packages"
 ENV LD_LIBRARY_PATH="/usr/local/cuda/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
 ENV LD_PRELOAD=libtcmalloc.so
 ENV PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+
+# ref. https://github.com/microsoft/onnxruntime/issues/21684
+# Failed to load library libonnxruntime_providers_cuda.so with error: libcudnn_adv.so.9: cannot open shared object file: No such file or directory
+RUN --mount=type=cache,target=/root/.cache \
+    pip uninstall -y onnxruntime onnxruntime-gpu && \
+    pip install onnxruntime-gpu==1.18.1 --extra-index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-12/pypi/simple/
+
 # Rich logging
 # https://rich.readthedocs.io/en/stable/console.html#interactive-mode
 ENV FORCE_COLOR="true"
